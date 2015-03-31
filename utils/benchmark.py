@@ -1,14 +1,5 @@
-"""Script for the benchmark submission of the Otto Group Competition
-hosted by Kaggle:
-
-    https://www.kaggle.com/c/otto-group-product-classification-challenge
-
-Use this script in the following way:
-
+"""
     python benchmark.py <path-to-train> <path-to-test> <name-of-submission>
-
-Each argument is optional, the script will guess the right names.
-
 """
 
 from __future__ import division
@@ -26,9 +17,6 @@ np.random.seed(17411)
 
 def logloss_mc(y_true, y_prob, epsilon=1e-15):
     """ Multiclass logloss
-
-    This function is not officially provided by Kaggle, so there is no
-    guarantee for its correctness.
     """
     # normalize
     y_prob = y_prob / y_prob.sum(axis=1).reshape(-1, 1)
