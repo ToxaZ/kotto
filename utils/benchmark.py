@@ -8,11 +8,9 @@ import sys
 import numpy as np
 import pandas as pd
 from sklearn.cross_validation import train_test_split
+from sklearn.cross_validation import cross_val_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-
-
-np.random.seed(17411)
 
 
 def logloss_mc(y_true, y_prob, epsilon=1e-15):
@@ -31,12 +29,7 @@ def logloss_mc(y_true, y_prob, epsilon=1e-15):
 def load_train_data(path=None, train_size=0.8):
     path = sys.argv[1] if len(sys.argv) > 1 else path
     if path is None:
-        try:
-            # Unix
-            df = pd.read_csv('data/trainData.csv')
-        except IOError:
-            # Windows
-            df = pd.read_csv('data\\trainData.csv')
+        df = pd.read_csv('data/train.csv')
     else:
         df = pd.read_csv(path)
     X = df.values.copy()
@@ -52,17 +45,24 @@ def load_train_data(path=None, train_size=0.8):
 def load_test_data(path=None):
     path = sys.argv[2] if len(sys.argv) > 2 else path
     if path is None:
-        try:
-            # Unix
-            df = pd.read_csv('data/testData.csv')
-        except IOError:
-            # Windows
-            df = pd.read_csv('data\\testData.csv')
+        df = pd.read_csv('data/test.csv')
     else:
         df = pd.read_csv(path)
     X = df.values
     X_test, ids = X[:, 1:], X[:, 0]
     return X_test.astype(float), ids.astype(str)
+
+def cross_validate_train(path="data/train.csv"):
+    clf = RandomForestClassifier(n_estimators=10)
+    df = pd.read_csv(path)
+    X = df.values.copy()
+    np.random.shuffle(X)
+    data = X[:, 1:-1]
+    target = X[:, -1]
+    scores = cross_val_score(clf, data, target, cv=5, scoring="log_loss")
+
+    print scores
+    print scores.mean()
 
 
 def train():
@@ -102,8 +102,9 @@ def make_submission(clf, encoder, path='my_submission.csv'):
 
 def main():
     print(" - Start.")
-    clf, encoder = train()
-    make_submission(clf, encoder)
+    cross_validate_train()
+    # clf, encoder = train()
+    # make_submission(clf, encoder)
     print(" - Finished.")
 
 
