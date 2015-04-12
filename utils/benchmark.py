@@ -11,6 +11,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.cross_validation import cross_val_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_selection import VarianceThreshold
 
 
 def logloss_mc(y_true, y_prob, epsilon=1e-15):
@@ -25,8 +26,18 @@ def logloss_mc(y_true, y_prob, epsilon=1e-15):
     ll = - np.mean(np.log(y))
     return ll
 
+def dim_reduction(X, threshold):
+    data = X[:, 1:-1]
+    target = X[:, -1]
+    print "Number of features before reduction (threshold=%f) %d" % (threshold, len(data[0]))
+    sel = VarianceThreshold(threshold=threshold)
+    data = sel.fit_transform(data)
+    print "Number of features after reduction (threshold=%f) %d" % (threshold, len(data[0]))
 
-def load_train_data(path=None, train_size=0.8):
+    return data, target
+
+
+def load_train_data(path=None, train_size=0.8, reduction_threshold=0):
     path = sys.argv[1] if len(sys.argv) > 1 else path
     if path is None:
         df = pd.read_csv('data/train.csv')
@@ -34,13 +45,16 @@ def load_train_data(path=None, train_size=0.8):
         df = pd.read_csv(path)
     X = df.values.copy()
     np.random.shuffle(X)
+
+    data, target = dim_reduction(X, reduction_threshold)
+
+
     X_train, X_valid, y_train, y_valid = train_test_split(
-        X[:, 1:-1], X[:, -1], train_size=train_size,
+        data, target, train_size=train_size,
     )
     print(" -- Loaded data.")
     return (X_train.astype(float), X_valid.astype(float),
             y_train.astype(str), y_valid.astype(str))
-
 
 def load_test_data(path=None):
     path = sys.argv[2] if len(sys.argv) > 2 else path
@@ -52,13 +66,13 @@ def load_test_data(path=None):
     X_test, ids = X[:, 1:], X[:, 0]
     return X_test.astype(float), ids.astype(str)
 
-def cross_validate_train(path="data/train.csv"):
+def cross_validate_train(path="data/train.csv", reduction_threshold=0):
     clf = RandomForestClassifier(n_estimators=10)
     df = pd.read_csv(path)
     X = df.values.copy()
     np.random.shuffle(X)
-    data = X[:, 1:-1]
-    target = X[:, -1]
+
+    data, target = dim_reduction(X, reduction_threshold)
     scores = cross_val_score(clf, data, target, cv=5, scoring="log_loss")
 
     print scores
