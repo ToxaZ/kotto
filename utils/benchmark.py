@@ -6,12 +6,16 @@ from __future__ import division
 import sys
 
 import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.svm import SVC
 from sklearn.cross_validation import train_test_split
 from sklearn.cross_validation import cross_val_score
+from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-from sklearn.feature_selection import VarianceThreshold
+from sklearn.feature_selection import SelectPercentile, f_classif
+from sklearn.feature_selection import RFECV
 
 
 def logloss_mc(y_true, y_prob, epsilon=1e-15):
@@ -26,18 +30,25 @@ def logloss_mc(y_true, y_prob, epsilon=1e-15):
     ll = - np.mean(np.log(y))
     return ll
 
-def dim_reduction(X, threshold):
+
+def dim_reduction(X, threshold=0):
     data = X[:, 1:-1]
     target = X[:, -1]
-    print "Number of features before reduction (threshold=%f) %d" % (threshold, len(data[0]))
-    sel = VarianceThreshold(threshold=threshold)
-    data = sel.fit_transform(data)
-    print "Number of features after reduction (threshold=%f) %d" % (threshold, len(data[0]))
+    svc = SVC(kernel="linear")
+    print("creating SVC")
+    rfecv = RFECV(estimator=svc, step=1, cv=StratifiedKFold(target, 2), scoring='accuracy')
+    print("creating RFECV")
+    rfecv.fit(data, target)
+    print("Optimal number of features : %d" % rfecv.n_features_)
+    # print "Number of features before reduction (threshold=%f) %d" % (threshold, len(data[0]))
+    # data = sel.fit_transform(data,target)
+    # print "Number of features after reduction (threshold=%f) %d" % (threshold, len(data[0]))
 
     return data, target
 
 
-def load_train_data(path=None, train_size=0.8, reduction_threshold=0):
+def load_train_data(path=None, train_size=0.8, reduction_threshold=95):
+    global data, target
     path = sys.argv[1] if len(sys.argv) > 1 else path
     if path is None:
         df = pd.read_csv('data/train.csv')
@@ -66,18 +77,17 @@ def load_test_data(path=None):
     X_test, ids = X[:, 1:], X[:, 0]
     return X_test.astype(float), ids.astype(str)
 
-def cross_validate_train(path="data/train.csv", reduction_threshold=0):
+
+def cross_validate_train(path="data/train.csv", reduction_threshold=95):
+    global scores
     clf = RandomForestClassifier(n_estimators=10)
     df = pd.read_csv(path)
     X = df.values.copy()
     np.random.shuffle(X)
-
     data, target = dim_reduction(X, reduction_threshold)
     scores = cross_val_score(clf, data, target, cv=5, scoring="log_loss")
-
     print scores
     print scores.mean()
-
 
 def train():
     X_train, X_valid, y_train, y_valid = load_train_data()
