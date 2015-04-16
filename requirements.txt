@@ -3,3 +3,5 @@ pandas
 scipy
 scikit-learn
 matplotlib
+nolearn
+https://github.com/Lasagne/Lasagne#egg=Lasagne
