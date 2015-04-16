@@ -4,4 +4,4 @@ scipy
 scikit-learn
 matplotlib
 nolearn
-https://github.com/Lasagne/Lasagne#egg=Lasagne
+git+git://github.com/Lasagne/Lasagne.git
