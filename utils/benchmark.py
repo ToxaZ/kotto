@@ -5,14 +5,18 @@
 from __future__ import division
 import sys
 
+import warnings
 import numpy as np
 import pandas as pd
 from sklearn.cross_validation import train_test_split
 from sklearn.cross_validation import cross_val_score
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesRegressor
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_selection import VarianceThreshold
-
+from sklearn.linear_model import (RandomizedLasso, lasso_stability_path,
+                                  LassoLarsCV)
+from sklearn.feature_selection import f_regression
+from sklearn.utils import ConvergenceWarning
 
 def logloss_mc(y_true, y_prob, epsilon=1e-15):
     """ Multiclass logloss
@@ -26,13 +30,21 @@ def logloss_mc(y_true, y_prob, epsilon=1e-15):
     ll = - np.mean(np.log(y))
     return ll
 
-def dim_reduction(X, threshold):
+def dim_reduction(X):
     data = X[:, 1:-1]
     target = X[:, -1]
-    print "Number of features before reduction (threshold=%f) %d" % (threshold, len(data[0]))
-    sel = VarianceThreshold(threshold=threshold)
-    data = sel.fit_transform(data)
-    print "Number of features after reduction (threshold=%f) %d" % (threshold, len(data[0]))
+    # print "Number of features before reduction (threshold=%f) %d" % (threshold, len(data[0]))
+    # sel = VarianceThreshold(threshold=threshold)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        warnings.simplefilter('ignore', ConvergenceWarning)
+        lars_cv = LassoLarsCV(cv=6).fit(data, target)
+    alphas = np.linspace(lars_cv.alphas_[0], .1 * lars_cv.alphas_[0], 6)
+    clf = RandomizedLasso(alpha=alphas, random_state=42).fit(data, target)
+    trees = ExtraTreesRegressor(100).fit(data, target)
+    # Compare with F-score
+    F, _ = f_regression(data, target)
+    # print "Number of features after reduction (threshold=%f) %d" % (threshold, len(data[0]))
 
     return data, target
 
@@ -46,7 +58,7 @@ def load_train_data(path=None, train_size=0.8, reduction_threshold=0):
     X = df.values.copy()
     np.random.shuffle(X)
 
-    data, target = dim_reduction(X, reduction_threshold)
+    data, target = dim_reduction(X)
 
 
     X_train, X_valid, y_train, y_valid = train_test_split(
@@ -66,13 +78,13 @@ def load_test_data(path=None):
     X_test, ids = X[:, 1:], X[:, 0]
     return X_test.astype(float), ids.astype(str)
 
-def cross_validate_train(path="data/train.csv", reduction_threshold=0):
+def cross_validate_train(path="data/train.csv", reduction_threshold=8):
     clf = RandomForestClassifier(n_estimators=10)
     df = pd.read_csv(path)
     X = df.values.copy()
     np.random.shuffle(X)
 
-    data, target = dim_reduction(X, reduction_threshold)
+    data, target = dim_reduction(X)
     scores = cross_val_score(clf, data, target, cv=5, scoring="log_loss")
 
     print scores
